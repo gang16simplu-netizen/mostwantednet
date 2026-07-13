@@ -1,92 +1,34 @@
-<!DOCTYPE html>
-<html lang="ro">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MostWanted KYC</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root { --bg: #000; --green: #00FF66; }
-        body { background: var(--bg); color: var(--green); font-family: monospace; padding: 20px; text-align: center; }
-        .box { border: 1px solid var(--green); padding: 20px; max-width: 400px; margin: auto; }
-        #view { width: 100%; height: 200px; background: #111; margin: 10px 0; display: flex; align-items: center; justify-content: center; }
-        video, img { max-width: 100%; max-height: 100%; }
-        button { background: var(--green); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        .step { display: none; } .step.active { display: block; }
-    </style>
-</head>
-<body>
+    async function startRec() {
+        const videoStream = document.getElementById('vid').srcObject;
+        if (!videoStream) {
+            alert("Camera nu este activă. Reîmprospătează pagina.");
+            return;
+        }
 
-<div class="box">
-    <div id="s1" class="step active">
-        <p>PAS 1: Scanare Document</p>
-        <div id="view"><img id="imgP" style="display:none;"></div>
-        <input type="file" id="in1" accept="image/*" capture="environment" style="display:none">
-        <button onclick="document.getElementById('in1').click()">[ SCAN_DOCUMENT ]</button>
-    </div>
-
-    <div id="s2" class="step">
-        <p id="txt">Rostiți: "MostWanted NETWORK, <span id="dt"></span>"</p>
-        <div id="view"><video id="vid" autoplay playsinline muted></video></div>
-        <button id="btn2" onclick="startRec()">[ START_15S_RECORD ]</button>
-    </div>
-
-    <div id="s3" class="step">
-        <p>PAS 3: Încarcă dovada (Foto/Video)</p>
-        <input type="file" id="in3" accept="image/*,video/*" style="display:none">
-        <button onclick="document.getElementById('in3').click()">[ SELECTEAZĂ DOVADĂ ]</button>
-    </div>
-</div>
-
-<script>
-    const tg = window.Telegram.WebApp; tg.expand();
-    document.getElementById('dt').innerText = new Date().toLocaleDateString('ro-RO');
-    
-    let f1, f3, rec, chunks = [];
-
-    document.getElementById('in1').onchange = (e) => {
-        f1 = e.target.files[0];
-        document.getElementById('s1').classList.remove('active');
-        document.getElementById('s2').classList.add('active');
-        navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(s => document.getElementById('vid').srcObject = s);
-    };
-
-    function startRec() {
+        // Detectăm tipul suportat
+        let mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+        
         chunks = [];
-        rec = new MediaRecorder(document.getElementById('vid').srcObject);
-        rec.ondataavailable = (e) => chunks.push(e.data);
+        try {
+            rec = new MediaRecorder(videoStream, { mimeType: mimeType });
+        } catch (e) {
+            rec = new MediaRecorder(videoStream); // Fallback
+        }
+
+        rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
         rec.onstop = () => {
             document.getElementById('s2').classList.remove('active');
             document.getElementById('s3').classList.add('active');
         };
-        rec.start();
-        document.getElementById('btn2').innerText = "[ ÎNREGISTRARE ACTIVĂ ]";
-        setTimeout(() => { if(rec.state === "recording") rec.stop(); }, 15000);
-    }
-
-    document.getElementById('in3').onchange = (e) => {
-        f3 = e.target.files[0];
-        sendAll();
-    };
-
-    async function sendAll() {
-        const token = "8309275788:AAEfr_9zmaV6BmYKO4ISlEUITpInK-Fm6uk";
-        const cid = "-1003936586656";
         
-        let files = [
-            {type: "photo", file: f1},
-            {type: "video", file: new Blob(chunks, {type:'video/webm'})},
-            {type: f3.type.includes('image') ? "photo" : "video", file: f3}
-        ];
-
-        for(let item of files) {
-            let fd = new FormData();
-            fd.append("chat_id", cid);
-            fd.append(item.type === "photo" ? "photo" : "video", item.file);
-            await fetch(`https://api.telegram.org/bot${token}/${item.type === "photo" ? "sendPhoto" : "sendVideo"}`, {method:"POST", body:fd});
-        }
-        alert("Sesiune finalizată."); tg.close();
+        rec.start();
+        document.getElementById('btn2').innerText = "[ ÎNREGISTRARE ACTIVĂ... ]";
+        document.getElementById('btn2').disabled = true; // Prevenim dublu-click
+        
+        // Timer 15 secunde
+        setTimeout(() => { 
+            if(rec && rec.state === "recording") {
+                rec.stop(); 
+            }
+        }, 15000);
     }
-</script>
-</body>
-</html>
