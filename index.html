@@ -3,94 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MostWanted Quantum Security</title>
+    <title>MostWanted KYC</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* [DESIGN_OPTIMIZAT_PENTRU_FLUX_COMPLET] */
-        :root { --terminal-green: #00FF66; --bg-pure: #000; --panel-bg: rgba(9, 9, 11, 0.95); --error-red: #FF3B30; }
-        body { background: var(--bg-pure); color: var(--terminal-green); font-family: 'Courier New', monospace; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
-        .terminal-box { width: 90%; max-width: 360px; border: 1px solid var(--terminal-green); padding: 20px; background: var(--panel-bg); }
-        .viewport { width: 100%; height: 200px; background: #111; border: 1px solid #333; margin: 15px 0; display: flex; align-items: center; justify-content: center; position: relative; }
-        video, img { width: 100%; height: 100%; object-fit: cover; }
-        .action-btn { background: var(--terminal-green); color: #000; border: none; padding: 12px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
-        .btn-reset { background: transparent; border: 1px solid var(--error-red); color: var(--error-red); }
-        .teleprompter { font-size: 14px; border: 1px solid var(--terminal-green); padding: 10px; text-align: center; margin-bottom: 10px; animation: blink 2s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        :root { --green: #00FF66; --bg: #000; }
+        body { background: var(--bg); color: var(--green); font-family: 'Courier New', monospace; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .terminal { border: 1px solid var(--green); width: 100%; max-width: 400px; padding: 20px; background: #050505; }
+        #viewArea { width: 100%; height: 180px; background: #111; border: 1px solid #333; margin: 20px 0; display: flex; align-items: center; justify-content: center; position: relative; }
+        video, img { max-width: 100%; max-height: 100%; }
+        .btn { background: var(--green); color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; text-transform: uppercase; margin-bottom: 10px; }
+        .log { font-size: 10px; color: #888; }
     </style>
 </head>
 <body>
 
-<div class="terminal-box" id="terminal">
-    <div id="stepContent">
-        <h2 id="stageTitle">> IDENTIFY_STAGE</h2>
-        <div class="viewport" id="vp">
-            <img id="idPreview" style="display:none;">
-            <video id="videoPreview" style="display:none;" autoplay muted playsinline></video>
-        </div>
-        
-        <div id="uiArea">
-            <button class="action-btn" id="mainBtn" onclick="handleAction()">[ SCAN_DOCUMENT ]</button>
-            <button class="action-btn btn-reset" id="resetBtn" style="display:none;" onclick="location.reload()">[ RE-SCAN_DOCUMENT ]</button>
-        </div>
-        <div id="log" style="font-size: 10px; margin-top: 15px;">> STATUS: READY_TO_INIT</div>
+<div class="terminal">
+    <h2 id="title">> IDENTIFY_STAGE</h2>
+    <div id="viewArea">
+        <img id="previewImg" style="display:none;">
+        <video id="previewVideo" style="display:none;" autoplay playsinline></video>
     </div>
+    <button class="btn" id="mainBtn" onclick="processAction()">[ SCAN_DOCUMENT ]</button>
+    <div class="log" id="statusLog">> STATUS: READY_TO_INIT</div>
 </div>
+
+<input type="file" id="fileInput" accept="image/*" style="display:none;">
 
 <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
-    
-    let state = 0; // 0: Photo, 1: Record, 2: Upload
-    let idBlob, videoBlob;
-    const today = new Date().toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    async function handleAction() {
-        if (state === 0) {
-            document.getElementById('idInput').click();
-        } else if (state === 1) {
-            startRecording();
+    let currentStage = 0; // 0: Scan, 1: Record, 2: Uploading
+
+    function processAction() {
+        if (currentStage === 0) {
+            document.getElementById('fileInput').click();
+        } else if (currentStage === 1) {
+            startVideoRecording();
         }
     }
 
-    // Input ascuns
-    const idInput = document.createElement('input');
-    idInput.type = 'file'; idInput.accept = 'image/*';
-    idInput.onchange = (e) => {
-        idBlob = e.target.files[0];
-        document.getElementById('idPreview').src = URL.createObjectURL(idBlob);
-        document.getElementById('idPreview').style.display = 'block';
-        document.getElementById('mainBtn').innerText = "[ NEXT_STAGE ]";
-        document.getElementById('mainBtn').onclick = switchToVideo;
-        document.getElementById('log').innerText = "> DOC_CAPTURED_SUCCESSFULLY";
+    // Gestionare Foto
+    document.getElementById('fileInput').onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('previewImg').src = URL.createObjectURL(file);
+            document.getElementById('previewImg').style.display = 'block';
+            document.getElementById('title').innerText = "> BIOMETRIC_STAGE";
+            document.getElementById('mainBtn').innerText = "[ START_RECORDING ]";
+            document.getElementById('statusLog').innerText = "> DOCUMENT_CAPTURED. PROCEEDING...";
+            currentStage = 1;
+        }
     };
 
-    function switchToVideo() {
-        state = 1;
-        document.getElementById('idPreview').style.display = 'none';
-        document.getElementById('videoPreview').style.display = 'block';
-        document.getElementById('stageTitle').innerText = "> BIOMETRIC_CAPTURE";
-        document.getElementById('mainBtn').innerText = "[ START_RECORDING ]";
-        document.getElementById('mainBtn').onclick = handleAction;
-        document.getElementById('resetBtn').style.display = 'block';
+    // Gestionare Video
+    async function startVideoRecording() {
+        const video = document.getElementById('previewVideo');
+        video.style.display = 'block';
+        document.getElementById('previewImg').style.display = 'none';
         
-        // Adăugăm teleprompterul
-        const tp = document.createElement('div');
-        tp.className = 'teleprompter';
-        tp.innerText = `ROSTIȚI: "Confirm identitatea mea. Data: ${today}"`;
-        document.getElementById('terminal').prepend(tp);
-
-        navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(s => {
-            document.getElementById('videoPreview').srcObject = s;
-        });
-    }
-
-    async function startRecording() {
-        // Logica de înregistrare rămâne cea de mai sus
-        document.getElementById('mainBtn').innerText = "[ STOP_AND_UPLOAD ]";
-        // ... (folosește logica de MediaRecorder din codul anterior aici)
-        alert("Înregistrarea a început. Rostiți clar data și confirmarea.");
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+            video.srcObject = stream;
+            document.getElementById('mainBtn').innerText = "[ SEND_DATA ]";
+            document.getElementById('statusLog').innerText = "> RECORDING_ACTIVE. SPEAK CLEARLY.";
+        } catch (err) {
+            alert("Eroare cameră: " + err.message);
+        }
     }
 </script>
-<input type="file" id="idInput" style="display:none;">
 </body>
 </html>
