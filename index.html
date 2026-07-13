@@ -1,34 +1,42 @@
     async function startRec() {
-        const videoStream = document.getElementById('vid').srcObject;
-        if (!videoStream) {
-            alert("Camera nu este activă. Reîmprospătează pagina.");
-            return;
-        }
-
-        // Detectăm tipul suportat
-        let mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
-        
-        chunks = [];
+        // 1. Obținem fluxul direct, nu din elementul video
         try {
-            rec = new MediaRecorder(videoStream, { mimeType: mimeType });
-        } catch (e) {
-            rec = new MediaRecorder(videoStream); // Fallback
-        }
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            
+            // 2. Setăm fluxul și pe video pentru feedback vizual
+            document.getElementById('vid').srcObject = stream;
 
-        rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-        rec.onstop = () => {
-            document.getElementById('s2').classList.remove('active');
-            document.getElementById('s3').classList.add('active');
-        };
-        
-        rec.start();
-        document.getElementById('btn2').innerText = "[ ÎNREGISTRARE ACTIVĂ... ]";
-        document.getElementById('btn2').disabled = true; // Prevenim dublu-click
-        
-        // Timer 15 secunde
-        setTimeout(() => { 
-            if(rec && rec.state === "recording") {
-                rec.stop(); 
+            // 3. Verificăm codecurile
+            let mimeType = 'video/webm';
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                mimeType = 'video/webm;codecs=vp9';
             }
-        }, 15000);
+
+            chunks = [];
+            rec = new MediaRecorder(stream, { mimeType: mimeType });
+
+            rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+            
+            rec.onstop = () => {
+                // Oprim camera după înregistrare
+                stream.getTracks().forEach(track => track.stop());
+                document.getElementById('s2').classList.remove('active');
+                document.getElementById('s3').classList.add('active');
+            };
+
+            rec.start();
+            document.getElementById('btn2').innerText = "[ ÎNREGISTRARE ACTIVĂ ]";
+            document.getElementById('btn2').disabled = true;
+
+            // Timer de 15 secunde
+            setTimeout(() => {
+                if (rec && rec.state === "recording") {
+                    rec.stop();
+                }
+            }, 15000);
+
+        } catch (err) {
+            console.error("Eroare hardware:", err);
+            alert("Eroare: Nu am putut accesa camera sau microfonul. Asigură-te că ai permis accesul!");
+        }
     }
